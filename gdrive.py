@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-import argparse
-
+from argparse import ArgumentParser
 from hurry.filesize import size
+
 from src.api_service import ApiService
 from src.options import Options
 
@@ -26,7 +26,7 @@ def __display_items(items):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = ArgumentParser()
     parser.add_argument("-f", "--files", nargs='*',
                         help="Show most recent files.")
     parser.add_argument("-d", "--download", nargs='+',
