@@ -36,8 +36,7 @@ def main():
     service = ApiService()
 
     if args.files is not None:
-        options = Options(args.files) if len(args.files) > 0 else None
-        items = service.get_files(options)
+        items = service.get_files(Options(args.files))
         __display_items(items)
     elif args.download is not None:
         file_name = args.download[0] if len(args.download) > 0 else None
