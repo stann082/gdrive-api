@@ -41,11 +41,16 @@ class ApiService:
         self.service = build('drive', 'v3', credentials=creds)
 
     def download_file(self, file_name, download_path):
-        file = self.__get_file(file_name)
-        if file is None:
+        options = Options()
+        options.query = file_name
+        options.fields = 'files(id)'
+
+        files = self.get_files(options)
+        if len(files) == 0:
             print(f"Could not locate {file_name}...")
             return
 
+        file = files[0]
         download_to = os.path.join(download_path, file_name)
         Path(download_path).mkdir(parents=True, exist_ok=True)
 
