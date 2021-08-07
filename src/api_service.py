@@ -10,6 +10,7 @@ from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
 from pathlib import Path
+from src.options import Options
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly',
@@ -40,7 +41,6 @@ class ApiService:
         self.service = build('drive', 'v3', credentials=creds)
 
     def download_file(self, file_name, download_path):
-        print(f"Searching for file {file_name}...")
         file = self.__get_file(file_name)
         if file is None:
             print(f"Could not locate {file_name}...")
@@ -52,6 +52,7 @@ class ApiService:
         request = self.service.files().get_media(fileId=file['id'])
         fh = io.FileIO(download_to, 'wb')
         downloader = MediaIoBaseDownload(fh, request)
+
         done = False
         while done is False:
             status, done = downloader.next_chunk()
@@ -59,29 +60,36 @@ class ApiService:
 
         print(f"Downloaded file {download_to}")
 
-    def get_files(self, items_total):
-        items_total = 10 if items_total is None else items_total
-        if (items_total == "all"):
-            return self.__get_all_files()
-
-        return self.__get_recent_files(items_total)
-
-    def __get_all_files(self):
-        results = self.service.files().list(pageSize=500).execute()
+    def get_files(self, options):
+        kwargs = self.__build_args(options)
+        results = self.service.files().list(**kwargs).execute()
         files = results['files']
+
         while "nextPageToken" in results:
-            results = self.service.files().list(
-                pageSize=500, pageToken=results['nextPageToken']).execute()
+            results = self.service.files().list(**kwargs,
+                                                pageToken=results['nextPageToken']).execute()
             files.extend(results['files'])
+
+        if options.order_by_size:
+            return sorted(files, key=lambda x: int(x['size']) if 'size' in x else 0, reverse=options.is_descending)
+
         return files
 
-    def __get_file(self, file_name):
-        files = self.__get_all_files()
-        file = next(
-            (f for f in files if f['name'].startswith(file_name)), None)
-        return file
+    # region Helper Methods
 
-    def __get_recent_files(self, items_total):
-        results = self.service.files().list(
-            pageSize=items_total, fields="nextPageToken, files(id, name)").execute()
-        return results['files']
+    def __build_args(self, options):
+        args = {}
+
+        if options.query is not None:
+            args['q'] = f"{options.filter_by}='{options.query}'"
+        if not options.order_by_size and options.order_by is not None:
+            args['orderBy'] = options.order_by
+        if options.total is not None:
+            args['pageSize'] = options.total
+        if options.fields is not None:
+            args['fields'] = options.fields
+            if options.fetch_all_files:
+                args['fields'] = f"nextPageToken, {options.fields}"
+                args['pageSize'] = '100'
+
+        return args
